@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <new>
+#include <ctime>
 
 #include <stdlib.h> // qsort
 #include <stdarg.h>
@@ -446,8 +447,69 @@ const char *CClient::LatestVersion()
 	return m_aVersionStr;
 }
 
-// TODO: OPT: do this alot smarter!
+/*
+Test stuff.
 int *CClient::GetInput(int Tick)
+{
+  int ind1, ind2;
+  int* r1 = GetInputOrig(Tick, &ind1);
+  int* r2 = GetInput2(Tick, &ind2);
+  /*
+  int ind1, ind2;
+  int times = 1;
+  clock_t begin = clock();
+  for (int i = 0; i < times; i++) {
+    r1 = GetInputOrig(Tick, &ind1);
+  }
+  clock_t end = clock();
+  double t1 = double(end - begin) / CLOCKS_PER_SEC;
+
+  begin = clock();
+  for (int i = 0; i < times; i++) {
+    r2 = GetInput2(Tick, &ind2);
+  }
+  end = clock();
+  double t2 = double(end - begin) / CLOCKS_PER_SEC;
+
+  char aBuf[128];
+  str_format(aBuf, sizeof(aBuf), "orig time = %.2f, new time = %.2f", t1, t2);
+  m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
+  
+  if (t1 > t2) {
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", "GOOD");
+  } else {
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", "BAD");
+    }
+
+  if (r1 != r2) {
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", "GetInput ERROR!");
+
+    char aBuf[128];
+    str_format(aBuf, sizeof(aBuf), "looking for %d", Tick);
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
+    str_format(aBuf, sizeof(aBuf), "current input =  %d", m_CurrentInput);
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
+
+    for (int i = -5; i <= 5; i++) {
+      str_format(aBuf, sizeof(aBuf), "inputs[%d].tick = %d",
+                 (m_CurrentInput + i + 200) % 200,
+                 m_aInputs[(m_CurrentInput + i + 200) % 200].m_Tick);
+      m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
+    }
+
+    str_format(aBuf, sizeof(aBuf), "ind1=%d, tick1=%d", ind1,
+               ind1 >= 0 ? m_aInputs[ind1].m_Tick : -1);
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
+    str_format(aBuf, sizeof(aBuf), "ind2=%d, tick2=%d", ind2,
+               ind2 >= 0 ? m_aInputs[ind2].m_Tick : -1);
+    m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client", aBuf);
+
+    return r1;
+  }
+}
+
+// TODO: OPT: do this alot smarter!
+int *CClient::GetInputOrig(int Tick, int * ind)
 {
 	int Best = -1;
 	for(int i = 0; i < 200; i++)
@@ -456,9 +518,63 @@ int *CClient::GetInput(int Tick)
 			Best = i;
 	}
 
-	if(Best != -1)
+	if(Best != -1) {
+          *ind = Best;
 		return (int *)m_aInputs[Best].m_aData;
+        }
+        *ind = 0;
 	return 0;
+}
+*/
+int *CClient::GetInput(int Tick)
+{
+  int border = m_CurrentInput;
+  int prev_border = (border - 1 + 200) % 200;
+  int low = -1, high = -1;
+
+  if ((m_aInputs[199].m_Tick <= Tick) &&
+      (m_aInputs[0].m_Tick > Tick)) {
+    //*ind = 199;
+    return (int *)m_aInputs[199].m_aData;
+  }
+
+  if ((m_aInputs[border].m_Tick <= Tick) &&
+      (Tick <= m_aInputs[199].m_Tick)) {
+    low = border;
+    high = 199;
+  }
+  if ((m_aInputs[0].m_Tick <= Tick) &&
+      (Tick <= m_aInputs[prev_border].m_Tick)) {
+    low = 0;
+    high = prev_border;
+  }
+
+  while (high - low > 1) {
+    int mid = (low + high) / 2;
+    if (m_aInputs[mid].m_Tick < Tick) {
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+
+  if ((high != -1) && (m_aInputs[high].m_Tick == Tick)) {
+    //*ind = high;
+    return (int *)m_aInputs[high].m_aData;
+  }
+  if (low != -1) {
+    //*ind = low;
+    return (int *)m_aInputs[low].m_aData;
+  }
+
+  if (m_aInputs[prev_border].m_Tick != -1) {
+    
+    //*ind = prev_border;
+    return (int *)m_aInputs[prev_border].m_aData;
+  }
+
+  //*ind = -1;
+  return 0;
 }
 
 // ------ state handling -----

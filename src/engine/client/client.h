@@ -214,6 +214,8 @@ public:
 
 	// TODO: OPT: do this alot smarter!
 	virtual int *GetInput(int Tick);
+	//virtual int *GetInput2(int Tick, int *ind);
+	//virtual int *GetInputOrig(int Tick, int *ind);
 
 	const char *LatestVersion();
 	void VersionUpdate();
